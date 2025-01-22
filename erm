@@ -1,0 +1,104 @@
+local Config = {
+    Box               = true, -- Enable Box
+    BoxOutline        = true,
+    BoxColor          = Color3.fromRGB(255,255,255), -- Default white (used as fallback)
+    BoxOutlineColor   = Color3.fromRGB(0,0,0),
+    BoxTransparency   = 0.7, -- Transparency for the box
+    GradientEnabled   = true, -- Enable gradient
+    GradientColors    = {Color3.fromRGB(0,0,255), Color3.fromRGB(255,255,255)}, -- Gradient from blue to white
+    HealthBar         = false,
+    HealthBarSide     = "Left", -- Left,Bottom,Right
+    Names             = true,
+    NamesOutline      = true,
+    NamesColor        = Color3.fromRGB(255,255,255),
+    NamesOutlineColor = Color3.fromRGB(0,0,0),
+    NamesFont         = 2, -- 0,1,2,3
+    NamesSize         = 13
+}
+
+function CreateEsp(Player)
+    local Box, BoxOutline, Name = Drawing.new("Square"), Drawing.new("Square"), Drawing.new("Text")
+    local Updater = game:GetService("RunService").RenderStepped:Connect(function()
+        if Player.Character and Player.Character:FindFirstChild("Humanoid") and Player.Character:FindFirstChild("HumanoidRootPart") and Player.Character.Humanoid.Health > 0 then
+            local Target2dPosition, IsVisible = workspace.CurrentCamera:WorldToViewportPoint(Player.Character.HumanoidRootPart.Position)
+            local scale_factor = 1 / (Target2dPosition.Z * math.tan(math.rad(workspace.CurrentCamera.FieldOfView * 0.5)) * 2) * 100
+            local width, height = math.floor(40 * scale_factor), math.floor(60 * scale_factor)
+
+            if Config.Box then
+                -- Apply gradient logic
+                if Config.GradientEnabled then
+                    local gradient_steps = 20 -- Number of rectangles to draw for gradient effect
+                    for i = 0, gradient_steps - 1 do
+                        local t = i / (gradient_steps - 1)
+                        local lerpColor = Config.GradientColors[1]:Lerp(Config.GradientColors[2], t)
+                        local partialBox = Drawing.new("Square")
+                        partialBox.Visible = IsVisible
+                        partialBox.Color = lerpColor
+                        partialBox.Transparency = Config.BoxTransparency
+                        partialBox.Size = Vector2.new(width, height / gradient_steps)
+                        partialBox.Position = Vector2.new(Target2dPosition.X - width / 2, Target2dPosition.Y - height / 2 + (i * height / gradient_steps))
+                        partialBox.Thickness = 1
+                        partialBox.ZIndex = 70
+                        game:GetService("Debris"):AddItem(partialBox, 0.01) -- Automatically clean up
+                    end
+                else
+                    Box.Visible = IsVisible
+                    Box.Color = Config.BoxColor
+                    Box.Transparency = Config.BoxTransparency
+                    Box.Size = Vector2.new(width, height)
+                    Box.Position = Vector2.new(Target2dPosition.X - width / 2, Target2dPosition.Y - height / 2)
+                    Box.Thickness = 1
+                    Box.ZIndex = 69
+                end
+
+                if Config.BoxOutline then
+                    BoxOutline.Visible = IsVisible
+                    BoxOutline.Color = Config.BoxOutlineColor
+                    BoxOutline.Size = Vector2.new(width, height)
+                    BoxOutline.Position = Vector2.new(Target2dPosition.X - width / 2, Target2dPosition.Y - height / 2)
+                    BoxOutline.Thickness = 3
+                    BoxOutline.ZIndex = 1
+                else
+                    BoxOutline.Visible = false
+                end
+            else
+                Box.Visible = false
+                BoxOutline.Visible = false
+            end
+
+            if Config.Names then
+                Name.Visible = IsVisible
+                Name.Color = Config.NamesColor
+                Name.Text = Player.Name .. " " .. math.floor((workspace.CurrentCamera.CFrame.p - Player.Character.HumanoidRootPart.Position).magnitude) .. "m"
+                Name.Center = true
+                Name.Outline = Config.NamesOutline
+                Name.OutlineColor = Config.NamesOutlineColor
+                Name.Position = Vector2.new(Target2dPosition.X, Target2dPosition.Y - height * 0.5 - 15)
+                Name.Font = Config.NamesFont
+                Name.Size = Config.NamesSize
+            else
+                Name.Visible = false
+            end
+        else
+            Box.Visible = false
+            BoxOutline.Visible = false
+            Name.Visible = false
+        end
+    end)
+end
+
+for _, v in pairs(game:GetService("Players"):GetPlayers()) do
+    if v ~= game:GetService("Players").LocalPlayer then
+        CreateEsp(v)
+        v.CharacterAdded:Connect(function() CreateEsp(v) end)
+    end
+end
+
+game:GetService("Players").PlayerAdded:Connect(function(v)
+    if v ~= game:GetService("Players").LocalPlayer then
+        CreateEsp(v)
+        v.CharacterAdded:Connect(function() CreateEsp(v) end)
+    end
+end)
+
+return Config
